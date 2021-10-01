@@ -1,3 +1,7 @@
+const { basename, dirname, join, relative, resolve } = require('path')
+const { sync: globSync } = require('glob')
+const extname = require('path-complete-extname')
+
 const isArray = (value) => Array.isArray(value)
 const isBoolean = (str) => /^true/.test(str) || /^false/.test(str)
 const chdirTestApp = () => {
@@ -39,6 +43,36 @@ const canProcess = (rule, fn) => {
   return null
 }
 
+const parseEntryPath = (sourcePath, entryPath) => {
+  const entries = {}
+  const rootPath = join(sourcePath, entryPath)
+
+  globSync(`${rootPath}/*.*`).forEach((path) => {
+    const namespace = relative(join(rootPath), dirname(path))
+    const name = join(namespace, basename(path, extname(path)))
+    let assetPaths = resolve(path)
+    
+    // Allows for multiple filetypes per entry (https://webpack.js.org/guides/entry-advanced/)
+    // Transforms the config object value to an array with all values under the same name
+    let previousPaths = entries[name]
+    if (previousPaths) {
+      previousPaths = Array.isArray(previousPaths)
+        ? previousPaths
+        : [previousPaths]
+      previousPaths.push(assetPaths)
+      assetPaths = previousPaths
+    }
+
+    if (entryPath === '/') {
+      entries[name] = assetPaths
+    } else {
+      entries[`${entryPath.substring(1)}/${name}`] = assetPaths
+    }
+  })
+
+  return entries
+}
+
 module.exports = {
   chdirTestApp,
   chdirCwd,
@@ -47,5 +81,6 @@ module.exports = {
   ensureTrailingSlash,
   canProcess,
   moduleExists,
-  resetEnv
+  resetEnv,
+  parseEntryPath
 }

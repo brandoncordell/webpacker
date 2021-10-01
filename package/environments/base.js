@@ -1,39 +1,25 @@
 /* eslint global-require: 0 */
 /* eslint import/no-dynamic-require: 0 */
 
-const { basename, dirname, join, relative, resolve } = require('path')
-const extname = require('path-complete-extname')
+const { resolve } = require('path')
 const PnpWebpackPlugin = require('pnp-webpack-plugin')
-const { sync: globSync } = require('glob')
 const WebpackAssetsManifest = require('webpack-assets-manifest')
 const webpack = require('webpack')
 const rules = require('../rules')
 const { isProduction } = require('../env')
 const config = require('../config')
-const { moduleExists } = require('../utils/helpers')
+const { moduleExists, parseEntryPath } = require('../utils/helpers')
 
 const getEntryObject = () => {
-  const entries = {}
-  const rootPath = join(config.source_path, config.source_entry_path)
-
-  globSync(`${rootPath}/*.*`).forEach((path) => {
-    const namespace = relative(join(rootPath), dirname(path))
-    const name = join(namespace, basename(path, extname(path)))
-    let assetPaths = resolve(path)
-
-    // Allows for multiple filetypes per entry (https://webpack.js.org/guides/entry-advanced/)
-    // Transforms the config object value to an array with all values under the same name
-    let previousPaths = entries[name]
-    if (previousPaths) {
-      previousPaths = Array.isArray(previousPaths)
-        ? previousPaths
-        : [previousPaths]
-      previousPaths.push(assetPaths)
-      assetPaths = previousPaths
-    }
-
-    entries[name] = assetPaths
-  })
+  let entries = {}
+  
+  if (Array.isArray(config.source_entry_path)) {
+    config.source_entry_path.forEach((entryPath) => {
+      Object.assign(entries, parseEntryPath(config.source_path, entryPath))
+    }) 
+  } else {
+    entries = parseEntryPath(config.source_path, config.source_entry_path)
+  }
 
   return entries
 }
